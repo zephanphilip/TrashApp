@@ -2,9 +2,11 @@ import { View, Text, TouchableOpacity, Image, StyleSheet } from 'react-native'
 import React from 'react'
 import { Images } from '../constants'
 import { useUser } from '@clerk/clerk-expo'
+import { useNavigation } from '@react-navigation/native'
 
 export default function Header() {
   const {user} = useUser()
+  const navigation = useNavigation()
   return (
      <View style={styles.header}>
             <TouchableOpacity>
@@ -15,12 +17,12 @@ export default function Header() {
             </TouchableOpacity>
               
             <Text style={styles.logoText}>TRASH</Text>
-            
+            <TouchableOpacity onPress={() => navigation.navigate('Profile')}>
             <Image 
                 source={{uri:user?.imageUrl}}
                 style={styles.profileIcon}
               />
-            
+            </TouchableOpacity>
           </View>
           
   )

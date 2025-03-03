@@ -6,14 +6,10 @@ import {
 import { createStackNavigator } from "@react-navigation/stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { SignedIn, SignedOut } from "@clerk/clerk-expo";
-// import Entypo from '@expo/vector-icons/Entypo';
-// import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-// import Ionicons from '@expo/vector-icons/Ionicons';
-import { Auth, SplashScreen, WelcomeScreen, Home } from "../screens";
+
+import { Auth, SplashScreen, WelcomeScreen, Home, Profile, EducationalContent, Checkout, ChatWithAgent } from "../screens";
 import { StyleSheet, Text } from "react-native";
 import { Display } from "../utils";
-// import HomeStack from './HomeStack';
-// import { useNavigationState } from '@react-navigation/native';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -42,7 +38,11 @@ const Navigators = () => {
       <SignedIn>
         <Stack.Navigator screenOptions={{ headerShown: false }}>
           <Stack.Screen name="Welcome" component={WelcomeScreen} />
+          <Stack.Screen name="EducationalContent" component={EducationalContent} />
           <Stack.Screen name="Home" component={Home} />
+          <Stack.Screen name="Profile" component={Profile} />
+          <Stack.Screen name="Checkout" component={Checkout} />
+          <Stack.Screen name="ChatWithAgent" component={ChatWithAgent} />
         </Stack.Navigator>
       </SignedIn>
     </NavigationContainer>

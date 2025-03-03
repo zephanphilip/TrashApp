@@ -1,25 +1,25 @@
 const WELCOME_CONTENTS = [
-    {
-        image: 'w1',
-        title: 'Sell your Waste',
-        content: 'blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah',
-        route: 'Home',
-    },
-    {
-        image: 'w1',
-        title: 'Social Media',
-        content: 'blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah',
-        route: 'CookLikeAChef',
-    },
-    {
-        image: 'w1',
-        title: 'Educatiional Content',
-        content: 'blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah blah',
-        route: 'CookLikeAChef',
-    },
+  {
+      image: 'img1',
+      title: 'Sell your Waste',
+      content: 'Turn your waste into wealth with every scrap you sell!',
+      route: 'Home',
+  },
+  {
+      image: 'img2',
+      title: 'Trash Media',
+      content: 'Share your thoughts!',
+      route: 'CookLikeAChef',
+  },
+  {
+      image: 'img3',
+      title: 'Save The Planet!',
+      content: 'Know something more!',
+      route: 'EducationalContent',
+  },
 ]
 
-const API_BASE_URL = "http://172.20.10.3:3001/"
+const API_BASE_URL = "http://192.168.74.229:3001/"
 
 const MENUS_CONTENTS =[{
     name: 'Cook Like A Chef!',
@@ -52,5 +52,7 @@ const MENUS_CONTENTS =[{
     route: 'CartCompanion',
   },
 ]
+
+
 
 export default {WELCOME_CONTENTS,MENUS_CONTENTS,API_BASE_URL}
