@@ -12,7 +12,11 @@ const cors = require('cors')
 const path = require('path');
 
 const orderRoutes = require('./routes/orderRouter');
+const aiRoutes = require('./routes/aiRouter');
 const reviewRoutes = require('./routes/reviewRouter');
+const userRoutes = require('./routes/userRoutes');
+
+const slotRoutes = require('./routes/slotRoutes');
 
 
 // Import routes
@@ -29,7 +33,7 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: ['http://localhost:5173', 'exp://192.168.74.229:8081'], // React admin and React Native app
+    origin: ['http://localhost:5173', 'exp://172.30.29.4:8081'], // React admin and React Native app
     methods: ['GET', 'POST']
   }
 });
@@ -47,6 +51,9 @@ app.use(express.json())
 //routes
 app.use('/api/orders',orderRoutes);
 app.use('/api/reviews',reviewRoutes);
+app.use('/api/ai',aiRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/slots', slotRoutes);
 
 // Routes
 app.use('/api/chatsessions', chatSessionRoutes);

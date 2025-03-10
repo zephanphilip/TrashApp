@@ -9,12 +9,7 @@ export default function Header() {
   const navigation = useNavigation()
   return (
      <View style={styles.header}>
-            <TouchableOpacity>
-              <Image 
-                source={Images.Notification}
-                style={styles.notificationIcon}
-              />
-            </TouchableOpacity>
+            
               
             <Text style={styles.logoText}>TRASH</Text>
             <TouchableOpacity onPress={() => navigation.navigate('Profile')}>
@@ -47,7 +42,7 @@ const styles = StyleSheet.create({
     height: 24,
   },
   logoText: {
-    fontSize: 22,
+    fontSize: 26,
     fontWeight: 'bold',
     color:"#000"
   }

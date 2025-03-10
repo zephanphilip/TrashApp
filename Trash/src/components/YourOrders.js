@@ -176,12 +176,6 @@ const YourOrders = () => {
                   <Text style={styles.totalAmount}>
                     Total: ${order.totalAmount.toFixed(2)}
                   </Text>
-                  <TouchableOpacity 
-                    style={styles.trackButton}
-                    onPress={() => navigation.navigate('OrderDetails', { orderId: order._id })}
-                  >
-                    <Text style={styles.trackButtonText}>Track Order</Text>
-                  </TouchableOpacity>
                 </View>
               </View>
             )}
@@ -190,12 +184,6 @@ const YourOrders = () => {
       ) : (
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyText}>You don't have any pending orders yet</Text>
-          <TouchableOpacity 
-            style={styles.shopButton}
-            onPress={() => navigation.navigate('WasteSelection')}
-          >
-            <Text style={styles.shopButtonText}>Start Recycling</Text>
-          </TouchableOpacity>
         </View>
       )}
     </ScrollView>

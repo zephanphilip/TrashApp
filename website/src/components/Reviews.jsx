@@ -19,9 +19,6 @@ import {
   useTheme
 } from '@mui/material';
 import { 
-  ThumbUp, 
-  ThumbDown, 
-  Favorite, 
   SentimentSatisfied, 
   SentimentDissatisfied, 
   Analytics, 
@@ -29,6 +26,7 @@ import {
   AccessTime
 } from '@mui/icons-material';
 import { styled } from '@mui/material/styles';
+import axios from 'axios';
 
 // Styled components
 const StyledCard = styled(Card)(({ theme }) => ({
@@ -69,52 +67,32 @@ const getSentimentColor = (rating) => {
   return 'error.main';
 };
 
-// Helper to generate random sentiment analysis
-const generateAnalysis = (review) => {
-  const sentiments = ['Positive', 'Negative', 'Neutral'];
-  const keywords = ['quality', 'service', 'price', 'experience', 'recommendation', 'satisfaction'];
-  const selectedKeywords = [];
-  
-  // Randomly select 2-4 keywords
-  const numKeywords = Math.floor(Math.random() * 3) + 2;
-  for (let i = 0; i < numKeywords; i++) {
-    const keyword = keywords[Math.floor(Math.random() * keywords.length)];
-    if (!selectedKeywords.includes(keyword)) {
-      selectedKeywords.push(keyword);
-    }
-  }
-  
-  // Generate random sentiment scores
-  const sentimentScores = sentiments.map(sentiment => ({
-    sentiment,
-    score: Math.round(Math.random() * 100)
-  })).sort((a, b) => b.score - a.score);
-  
-  return {
-    keywords: selectedKeywords,
-    sentiments: sentimentScores,
-    summary: `This review primarily expresses ${sentimentScores[0].sentiment.toLowerCase()} sentiment, focusing on ${selectedKeywords.join(', ')}.`
-  };
-};
-
 // Get initial of a name
 const getInitials = (name) => {
+  if (!name) return "?";
   return name.split(' ').map(n => n[0]).join('').toUpperCase();
 };
 
 // Format date
 const formatDate = (date) => {
-  return new Date(date).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric'
-  });
+  if (!date) return "Unknown date";
+  try {
+    return new Date(date).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  } catch (error) {
+    return "Invalid date";
+  }
 };
 
 const Reviews = () => {
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [expandedReviews, setExpandedReviews] = useState({});
+  const [expandedReviewId, setExpandedReviewId] = useState(null); // Track only one expanded review
+  const [analysisData, setAnalysisData] = useState({});
+  const [analyzingReviewIds, setAnalyzingReviewIds] = useState([]);
   const theme = useTheme();
 
   useEffect(() => {
@@ -132,11 +110,174 @@ const Reviews = () => {
     fetchReviews();
   }, []);
 
-  const handleAnalyze = (reviewId) => {
-    setExpandedReviews(prev => ({
-      ...prev,
-      [reviewId]: !prev[reviewId]
-    }));
+  const handleAnalyze = async (reviewId, reviewText) => {
+    // If this review is already expanded, close it
+    if (expandedReviewId === reviewId) {
+      setExpandedReviewId(null);
+      return;
+    }
+    
+    // If we already have the analysis data, just show it
+    if (analysisData[reviewId]) {
+      setExpandedReviewId(reviewId);
+      return;
+    }
+    
+    // Otherwise, fetch the analysis from the API
+    setAnalyzingReviewIds(prev => [...prev, reviewId]);
+    
+    try {
+      const response = await axios.post('http://localhost:3001/api/ai/analysereview', {
+        review: reviewText
+      });
+      
+      // Parse the AI response and store it
+      const aiAnalysis = response.data.sentianalysis;
+      setAnalysisData(prev => ({
+        ...prev,
+        [reviewId]: parseAnalysisResponse(aiAnalysis)
+      }));
+      
+      // Expand the review to show the analysis
+      setExpandedReviewId(reviewId);
+    } catch (error) {
+      console.error('Error analyzing review:', error);
+      // Show a fallback analysis on error
+      setAnalysisData(prev => ({
+        ...prev,
+        [reviewId]: {
+          summary: "We couldn't analyze this review. Please try again later.",
+          keywords: ["error"],
+          sentiments: [
+            { sentiment: "Error", score: 100 }
+          ]
+        }
+      }));
+      
+      setExpandedReviewId(reviewId);
+    } finally {
+      setAnalyzingReviewIds(prev => prev.filter(id => id !== reviewId));
+    }
+  };
+
+  // Helper function to parse the AI response
+  const parseAnalysisResponse = (aiResponse) => {
+    try {
+      // Default structure for analysis
+      const analysis = {
+        summary: "",
+        keywords: [],
+        sentiments: []
+      };
+      
+      // Try to extract summary
+      const summaryMatch = aiResponse.match(/(?:Summary|Overall):\s*(.*?)(?:\n\n|\n|$)/i);
+      if (summaryMatch && summaryMatch[1]) {
+        analysis.summary = summaryMatch[1].trim();
+      } else {
+        // Fallback: Use the first paragraph as summary
+        const firstParagraph = aiResponse.split('\n')[0];
+        analysis.summary = firstParagraph || "Analysis completed successfully.";
+      }
+      
+      // Try to extract keywords/topics
+      const keywordsMatch = aiResponse.match(/(?:Key Topics|Keywords|Key Themes|Main Points):\s*(.*?)(?:\n\n|\n|$)/i);
+      if (keywordsMatch && keywordsMatch[1]) {
+        // Split by commas, dashes, or bullet points
+        const keywordString = keywordsMatch[1].trim();
+        analysis.keywords = keywordString
+          .split(/,|\s-\s|\n-\s|•/)
+          .map(k => k.trim())
+          .filter(k => k.length > 0);
+      } else {
+        // Extract potential keywords based on capitalized words or quoted terms
+        const potentialKeywords = aiResponse.match(/[A-Z][a-z]+|"([^"]+)"/g);
+        if (potentialKeywords) {
+          analysis.keywords = potentialKeywords
+            .slice(0, 5)
+            .map(k => k.replace(/"/g, '').trim());
+        } else {
+          analysis.keywords = ["Customer Experience"];
+        }
+      }
+      
+      // Try to extract sentiment scores
+      const positiveMatch = aiResponse.match(/Positive:?\s*(\d+)%/i);
+      const negativeMatch = aiResponse.match(/Negative:?\s*(\d+)%/i);
+      const neutralMatch = aiResponse.match(/Neutral:?\s*(\d+)%/i);
+      
+      if (positiveMatch) {
+        analysis.sentiments.push({
+          sentiment: "Positive",
+          score: parseInt(positiveMatch[1])
+        });
+      }
+      
+      if (negativeMatch) {
+        analysis.sentiments.push({
+          sentiment: "Negative",
+          score: parseInt(negativeMatch[1])
+        });
+      }
+      
+      if (neutralMatch) {
+        analysis.sentiments.push({
+          sentiment: "Neutral",
+          score: parseInt(neutralMatch[1])
+        });
+      }
+      
+      // If no sentiment scores were found, generate some based on positive/negative words
+      if (analysis.sentiments.length === 0) {
+        const positiveWords = ["excellent", "good", "great", "satisfied", "happy", "recommend"];
+        const negativeWords = ["poor", "bad", "terrible", "dissatisfied", "unhappy", "disappointed"];
+        
+        let positiveCount = 0;
+        let negativeCount = 0;
+        
+        positiveWords.forEach(word => {
+          if (aiResponse.toLowerCase().includes(word)) positiveCount++;
+        });
+        
+        negativeWords.forEach(word => {
+          if (aiResponse.toLowerCase().includes(word)) negativeCount++;
+        });
+        
+        const total = positiveCount + negativeCount;
+        if (total > 0) {
+          const positiveScore = Math.round((positiveCount / total) * 100);
+          const negativeScore = 100 - positiveScore;
+          
+          analysis.sentiments = [
+            { sentiment: "Positive", score: positiveScore },
+            { sentiment: "Negative", score: negativeScore }
+          ];
+        } else {
+          // Default fallback
+          analysis.sentiments = [
+            { sentiment: "Positive", score: 50 },
+            { sentiment: "Negative", score: 30 },
+            { sentiment: "Neutral", score: 20 }
+          ];
+        }
+      }
+      
+      // Sort sentiments by score (highest first)
+      analysis.sentiments.sort((a, b) => b.score - a.score);
+      
+      return analysis;
+    } catch (error) {
+      console.error('Error parsing AI response:', error);
+      return {
+        summary: aiResponse.substring(0, 100) + "...",
+        keywords: ["Customer", "Service", "Experience"],
+        sentiments: [
+          { sentiment: "Positive", score: 60 },
+          { sentiment: "Negative", score: 20 },
+          { sentiment: "Neutral", score: 20 }
+        ]
+      };
+    }
   };
 
   if (loading) {
@@ -163,16 +304,22 @@ const Reviews = () => {
           Customer Insights
         </Typography>
         <Typography variant="h6">
-          Explore what our customers are saying about us
+          Explore what our customers are saying about us using AI analysis
         </Typography>
       </Box>
 
       <Grid container spacing={4}>
         {reviews.map((review) => (
           <Grid item xs={12} md={6} key={review._id}>
-            <StyledCard>
-              <CardContent sx={{ position: 'relative', pb: 7 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+            <StyledCard 
+              sx={{ 
+                height: 'auto',
+                display: 'flex', 
+                flexDirection: 'column'
+              }}
+            >
+              <CardContent sx={{ flexGrow: 1, padding: 3 }}>
+                <Box sx={{ display: 'flex', alignItems: 'flex-start', mb: 3 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mr: 2 }}>
                     <UserAvatar sx={{ bgcolor: theme.palette.primary.main }}>
                       {getInitials(review.userName)}
@@ -184,7 +331,7 @@ const Reviews = () => {
                       sx={{ mt: 0.5 }}
                     />
                   </Box>
-                  <Box sx={{ flex: 1 }}>
+                  <Box sx={{ flexGrow: 1 }}>
                     <Typography variant="h6" fontWeight="bold">
                       {review.userName}
                     </Typography>
@@ -235,125 +382,112 @@ const Reviews = () => {
                 </Typography>
                 
                 <Box sx={{ 
-                  position: 'absolute', 
-                  bottom: 16, 
-                  left: 16, 
-                  right: 16,
                   display: 'flex',
-                  justifyContent: 'space-between'
+                  justifyContent: 'flex-end',
+                  mt: 2
                 }}>
-                  <Box>
-                    <Tooltip title="Helpful">
-                      <IconButton size="small" color="primary">
-                        <ThumbUp fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                    <Tooltip title="Not Helpful">
-                      <IconButton size="small" color="error">
-                        <ThumbDown fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                  </Box>
                   <AnimatedButton 
                     variant="contained" 
                     color="primary" 
-                    startIcon={<Analytics />}
-                    onClick={() => handleAnalyze(review._id)}
+                    startIcon={analyzingReviewIds.includes(review._id) ? <CircularProgress size={16} color="inherit" /> : <Analytics />}
+                    onClick={() => handleAnalyze(review._id, review.review)}
+                    disabled={analyzingReviewIds.includes(review._id)}
                     sx={{ 
                       borderRadius: 4,
                       boxShadow: 2,
                       px: 3
                     }}
                   >
-                    {expandedReviews[review._id] ? 'Hide Analysis' : 'Analyze'}
+                    {analyzingReviewIds.includes(review._id) 
+                      ? 'Analyzing...' 
+                      : expandedReviewId === review._id 
+                        ? 'Hide Analysis' 
+                        : 'AI Analysis'}
                   </AnimatedButton>
                 </Box>
               </CardContent>
               
-              <Collapse in={expandedReviews[review._id]} timeout="auto" unmountOnExit>
+              <Collapse in={expandedReviewId === review._id} timeout="auto" unmountOnExit>
                 <Divider />
                 <Box sx={{ p: 3, bgcolor: 'rgba(0,0,0,0.02)' }}>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                     <Typography variant="h6" color="primary" fontWeight="bold">
-                      Sentiment Analysis
+                      AI Sentiment Analysis
                     </Typography>
                     <IconButton 
                       size="small" 
-                      onClick={() => handleAnalyze(review._id)}
+                      onClick={() => setExpandedReviewId(null)}
                       sx={{ bgcolor: 'rgba(0,0,0,0.05)' }}
                     >
                       <Close fontSize="small" />
                     </IconButton>
                   </Box>
                   
-                  {(() => {
-                    const analysis = generateAnalysis(review);
-                    return (
-                      <>
-                        <Paper elevation={0} sx={{ p: 2, mb: 2, bgcolor: 'background.paper' }}>
-                          <Typography variant="body2" color="text.secondary" gutterBottom>
-                            Summary
-                          </Typography>
-                          <Typography variant="body1">
-                            {analysis.summary}
-                          </Typography>
-                        </Paper>
-                        
-                        <Grid container spacing={2}>
-                          <Grid item xs={12} sm={6}>
-                            <Paper elevation={0} sx={{ p: 2, height: '100%', bgcolor: 'background.paper' }}>
-                              <Typography variant="body2" color="text.secondary" gutterBottom>
-                                Key Topics
-                              </Typography>
-                              <Box>
-                                {analysis.keywords.map((keyword, idx) => (
-                                  <StyledChip 
-                                    key={idx} 
-                                    label={keyword} 
-                                    color="primary" 
-                                    variant="outlined"
-                                    size="small"
-                                  />
-                                ))}
-                              </Box>
-                            </Paper>
-                          </Grid>
-                          <Grid item xs={12} sm={6}>
-                            <Paper elevation={0} sx={{ p: 2, height: '100%', bgcolor: 'background.paper' }}>
-                              <Typography variant="body2" color="text.secondary" gutterBottom>
-                                Sentiment Breakdown
-                              </Typography>
-                              {analysis.sentiments.map((sentiment, idx) => (
-                                <Box key={idx} sx={{ mb: 1, display: 'flex', alignItems: 'center' }}>
-                                  <Typography variant="body2" sx={{ minWidth: 70 }}>
-                                    {sentiment.sentiment}:
-                                  </Typography>
-                                  <Box sx={{ 
-                                    flexGrow: 1, 
-                                    bgcolor: 'rgba(0,0,0,0.09)', 
-                                    borderRadius: 5,
-                                    mx: 1,
-                                    height: 8,
-                                    overflow: 'hidden'
-                                  }}>
-                                    <Box sx={{ 
-                                      width: `${sentiment.score}%`, 
-                                      bgcolor: sentiment.sentiment === 'Positive' ? 'success.main' : 
-                                              sentiment.sentiment === 'Negative' ? 'error.main' : 'warning.main',
-                                      height: '100%'
-                                    }} />
-                                  </Box>
-                                  <Typography variant="body2" fontWeight="bold">
-                                    {sentiment.score}%
-                                  </Typography>
-                                </Box>
+                  {analysisData[review._id] && (
+                    <>
+                      <Paper elevation={0} sx={{ p: 2, mb: 2, bgcolor: 'background.paper' }}>
+                        <Typography variant="body2" color="text.secondary" gutterBottom>
+                          Summary
+                        </Typography>
+                        <Typography variant="body1">
+                          {analysisData[review._id].summary}
+                        </Typography>
+                      </Paper>
+                      
+                      <Grid container spacing={2}>
+                        <Grid item xs={12} sm={6}>
+                          <Paper elevation={0} sx={{ p: 2, height: '100%', bgcolor: 'background.paper' }}>
+                            <Typography variant="body2" color="text.secondary" gutterBottom>
+                              Key Topics
+                            </Typography>
+                            <Box>
+                              {analysisData[review._id].keywords.map((keyword, idx) => (
+                                <StyledChip 
+                                  key={idx} 
+                                  label={keyword} 
+                                  color="primary" 
+                                  variant="outlined"
+                                  size="small"
+                                />
                               ))}
-                            </Paper>
-                          </Grid>
+                            </Box>
+                          </Paper>
                         </Grid>
-                      </>
-                    );
-                  })()}
+                        <Grid item xs={12} sm={6}>
+                          <Paper elevation={0} sx={{ p: 2, height: '100%', bgcolor: 'background.paper' }}>
+                            <Typography variant="body2" color="text.secondary" gutterBottom>
+                              Sentiment Breakdown
+                            </Typography>
+                            {analysisData[review._id].sentiments.map((sentiment, idx) => (
+                              <Box key={idx} sx={{ mb: 1, display: 'flex', alignItems: 'center' }}>
+                                <Typography variant="body2" sx={{ minWidth: 70 }}>
+                                  {sentiment.sentiment}:
+                                </Typography>
+                                <Box sx={{ 
+                                  flexGrow: 1, 
+                                  bgcolor: 'rgba(0,0,0,0.09)', 
+                                  borderRadius: 5,
+                                  mx: 1,
+                                  height: 8,
+                                  overflow: 'hidden'
+                                }}>
+                                  <Box sx={{ 
+                                    width: `${sentiment.score}%`, 
+                                    bgcolor: sentiment.sentiment === 'Positive' ? 'success.main' : 
+                                            sentiment.sentiment === 'Negative' ? 'error.main' : 'warning.main',
+                                    height: '100%'
+                                  }} />
+                                </Box>
+                                <Typography variant="body2" fontWeight="bold">
+                                  {sentiment.score}%
+                                </Typography>
+                              </Box>
+                            ))}
+                          </Paper>
+                        </Grid>
+                      </Grid>
+                    </>
+                  )}
                 </Box>
               </Collapse>
             </StyledCard>

@@ -7,7 +7,7 @@ import { createStackNavigator } from "@react-navigation/stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { SignedIn, SignedOut } from "@clerk/clerk-expo";
 
-import { Auth, SplashScreen, WelcomeScreen, Home, Profile, EducationalContent, Checkout, ChatWithAgent } from "../screens";
+import { Auth, SplashScreen, WelcomeScreen, Home, Profile, EducationalContent, Checkout, ChatWithAgent, AiChatBot } from "../screens";
 import { StyleSheet, Text } from "react-native";
 import { Display } from "../utils";
 
@@ -43,6 +43,7 @@ const Navigators = () => {
           <Stack.Screen name="Profile" component={Profile} />
           <Stack.Screen name="Checkout" component={Checkout} />
           <Stack.Screen name="ChatWithAgent" component={ChatWithAgent} />
+          <Stack.Screen name="AiChatBot" component={AiChatBot} />
         </Stack.Navigator>
       </SignedIn>
     </NavigationContainer>
