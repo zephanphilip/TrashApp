@@ -39,6 +39,7 @@ const Navigators = () => {
         <Stack.Navigator screenOptions={{ headerShown: false }}>
           <Stack.Screen name="Welcome" component={WelcomeScreen} />
           <Stack.Screen name="EducationalContent" component={EducationalContent} />
+          {/* social media */}
           <Stack.Screen name="Home" component={Home} />
           <Stack.Screen name="Profile" component={Profile} />
           <Stack.Screen name="Checkout" component={Checkout} />

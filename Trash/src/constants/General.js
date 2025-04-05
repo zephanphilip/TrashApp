@@ -19,7 +19,7 @@ const WELCOME_CONTENTS = [
   },
 ]
 
-const API_BASE_URL = "http://172.30.29.4:3001/"
+const API_BASE_URL = "http://192.168.199.229:3001/"
 
 const MENUS_CONTENTS =[{
     name: 'Cook Like A Chef!',

@@ -1,6 +1,3 @@
-
-
-
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   View, 
@@ -22,7 +19,7 @@ import io from 'socket.io-client';
 import axios from 'axios';
 import { General } from '../constants';
 
-const API_URL = 'http://172.30.29.4:3001'; // Replace with your actual backend URL
+const API_URL = 'http://172.20.10.2:3001'; // Replace with your actual backend URL
 
 const ChatWithAgent = () => {
   const { user } = useUser();
